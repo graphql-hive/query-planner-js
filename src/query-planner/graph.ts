@@ -75,7 +75,7 @@ export class Edge<T = Move> implements Display {
   ) {}
 
   toString(): string {
-    return `${this.head.toString()} -( ${(this.move as Display).toString()} ${this.requirement?.toString()} )- ${this.tail.toString()}`;
+    return `${this.head.toString()} -(${(this.move as Display).toString()} ${this.requirement?.toString() ?? ""})- ${this.tail.toString()}`;
   }
 }
 
@@ -291,6 +291,9 @@ export class Graph {
                   {
                     kind: "field",
                     typeName: headNode.typeName,
+                    // TODO: instead of id, use the field that is used as the key
+                    // For now, we allways define the id field, for simplicty,
+                    // as we don't need to worry about the key field yet.
                     fieldName: "id",
                     selectionSet: null,
                   },

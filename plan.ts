@@ -47,6 +47,8 @@ if (!result.supergraphSdl) {
 
 const supergraph = parseSupergraph(result.supergraphSdl);
 
+console.log(supergraph.print(true));
+
 const paths = walkQuery(supergraph, OperationTypeNode.QUERY, [
   {
     kind: "Field",
@@ -58,7 +60,6 @@ const paths = walkQuery(supergraph, OperationTypeNode.QUERY, [
   },
 ]);
 
-console.log("Found", paths.length, "paths");
 for (const path of paths) {
   console.log(path.edges.map((edge) => edge.toString()).join(" -> "));
 }

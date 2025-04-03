@@ -22,9 +22,17 @@ export class LoggerContext {
     times: [] as number[],
   };
   private maxIdLength = 0;
+  private staticMaxIdLength = 0;
   private idUpdateFns: ((len: number) => void)[] = [];
-  private logger = debug("composition");
+  private logger: debug.Debugger;
   private firstLoggerAt: number = 0;
+
+  constructor(namespace: string, staticMaxIdLength = 0) {
+    this.logger = debug(namespace);
+    if (staticMaxIdLength > 0) {
+      this.staticMaxIdLength = staticMaxIdLength;
+    }
+  }
 
   down(time: number) {
     this.updateIndent(+1, time);
@@ -54,7 +62,9 @@ export class LoggerContext {
     idUpdateFn(this.maxIdLength);
 
     this.idUpdateFns.push(idUpdateFn);
-    const newMaxIdLength = Math.max(this.maxIdLength, id.length);
+    const newMaxIdLength = this.staticMaxIdLength
+      ? this.staticMaxIdLength
+      : Math.max(this.maxIdLength, id.length);
     if (newMaxIdLength > this.maxIdLength) {
       this.maxIdLength = newMaxIdLength;
       this.idUpdateFns.forEach((fn) => fn(newMaxIdLength));

@@ -13,7 +13,7 @@ export class Supergraph {
   private mergedGraph: Graph;
   private selectionResolver: SelectionResolver;
   private moveRequirementChecker: MoveValidator;
-  private logger = new Logger("Supergraph", new LoggerContext());
+  private logger = new Logger("Supergraph", new LoggerContext("composition"));
 
   constructor(supergraphState: SupergraphState) {
     this.selectionResolver = new SelectionResolver(supergraphState);
