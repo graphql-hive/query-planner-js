@@ -1,4 +1,6 @@
 import { TypeKind } from "./schema";
+import { SelectionResolver } from "./selection-resolver";
+import { invariant } from "./utils";
 
 interface Display {
   toString(): string;
@@ -190,6 +192,7 @@ export class Graph {
         typeName: string;
       }>
     >,
+    selectionResolvers: Map<string, SelectionResolver>,
   ) {
     // for each entity type, we want to assign one entity node to a matching entity node in other subgraphs
     const edgesToAdd: Edge[] = [];
@@ -215,7 +218,13 @@ export class Graph {
         continue;
       }
 
-      this.connectEntities(i, otherNodesIndexes, edgesToAdd, entitiesOfType);
+      this.connectEntities(
+        i,
+        otherNodesIndexes,
+        edgesToAdd,
+        entitiesOfType,
+        selectionResolvers,
+      );
     }
 
     while (edgesToAdd.length > 0) {
@@ -267,6 +276,7 @@ export class Graph {
       graphId: string;
       typeName: string;
     }>,
+    selectionResolvers: Map<string, SelectionResolver>,
   ) {
     for (const headNode of this.nodesByTypeIndex[nodeIndex]) {
       for (const otherNodeIndex of sameTypeNameNodeIndexes) {
@@ -282,22 +292,17 @@ export class Graph {
           for (const { key } of entitiesOfType.filter(
             (t) => t.graphId === tailNode.subgraphId,
           )) {
+            const selectionResolver = selectionResolvers.get(
+              tailNode.subgraphId,
+            );
+            invariant(selectionResolver, "keyFieldsResolver is not defined");
+
             edgesToAdd.push(
               new Edge(
                 headNode,
                 tailNode,
                 new EntityMove(),
-                new Selection(headNode.typeName, key, [
-                  {
-                    kind: "field",
-                    typeName: headNode.typeName,
-                    // TODO: instead of id, use the field that is used as the key
-                    // For now, we allways define the id field, for simplicty,
-                    // as we don't need to worry about the key field yet.
-                    fieldName: "id",
-                    selectionSet: null,
-                  },
-                ]),
+                selectionResolver.resolve(headNode.typeName, key),
               ),
             );
           }

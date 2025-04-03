@@ -19,6 +19,7 @@ import {
   parseJoinField,
   parseJoinType,
 } from "./join-directives";
+import { SelectionResolver } from "./selection-resolver";
 
 export function parseSupergraph(sdl: string) {
   const supergraph = new Supergraph();
@@ -49,9 +50,11 @@ export function parseSupergraph(sdl: string) {
       typeName: string;
     }>
   >();
+  const selectionResolvers = new Map<string, SelectionResolver>();
 
   for (const [graphId, subgraph] of supergraph.subgraphs) {
     graphs.push(buildGraphFromSubgraph(subgraph));
+    selectionResolvers.set(graphId, new SelectionResolver(subgraph));
 
     for (const [typeName, typeState] of subgraph.types) {
       if (!Array.isArray(entities.get(typeName))) {
@@ -77,7 +80,7 @@ export function parseSupergraph(sdl: string) {
     mergedGraph.copyFrom(graph);
   }
 
-  mergedGraph.joinByKeys(entities);
+  mergedGraph.joinByKeys(entities, selectionResolvers);
 
   return mergedGraph;
 }
