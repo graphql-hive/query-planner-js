@@ -41,11 +41,13 @@ export class ObjectType {
 export class ObjectTypeField {
   public name: string;
   public type: string;
+  public isList: boolean;
   public join: JoinField;
 
-  constructor(name: string, type: string, join: JoinField) {
+  constructor(name: string, type: string, isList: boolean, join: JoinField) {
     this.name = name;
     this.type = type;
+    this.isList = isList;
     this.join = join;
   }
 }

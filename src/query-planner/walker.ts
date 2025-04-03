@@ -92,13 +92,13 @@ export function walkQuery(
     logger.groupEnd();
 
     if (!nextStep) {
-      return nextPaths;
+      return findBestPath(nextPaths);
     }
   }
 
   // find best path
 
-  return [];
+  return null;
 }
 
 function operationTypeToTypeName(operationType: OperationTypeNode): string {
@@ -154,35 +154,22 @@ function findDirectPaths(
 
     logger.log(() => `Checking edge ${edge.toString()}`);
 
-    if (edge.requirement) {
-      logger.group(
-        () =>
-          `Checking requirement ${edge.requirement?.toString()} for ${edge.toString()}`,
-      );
-      if (
-        !canSatisfyRequirement(logger, graph, edge.requirement, path, {
-          graphIds: concatIfNotExistsString(
-            excluded.graphIds,
-            edge.tail.subgraphId,
-          ),
-          requirements: excluded.requirements,
-          edges: [],
-        })
-      ) {
-        logger.groupEnd(
-          () => `Requirement ${edge.requirement?.toString()} not satisfied`,
-        );
-        continue;
-      }
-      logger.groupEnd(
-        () => `Requirement ${edge.requirement?.toString()} satisfied`,
-      );
-    }
+    const result = canSatisfyEdge(logger, graph, edge, path, {
+      graphIds: concatIfNotExistsString(
+        excluded.graphIds,
+        edge.tail.subgraphId,
+      ),
+      requirements: excluded.requirements,
+      edges: [],
+    });
 
-    logger.log(
-      () => `Advancing path ${path.toString()} with edge ${edge.toString()}`,
-    );
-    nextPaths.push(path.advance(edge));
+    if (result.success) {
+      logger.log(
+        () => `Advancing path ${path.toString()} with edge ${edge.toString()}`,
+      );
+      nextPaths.push(path.advance(edge).addRequiredPaths(result.paths));
+    }
+    logger.log(() => `Edge ${edge.requirement?.toString()} is not satisfied`);
   }
 
   return nextPaths;
@@ -255,31 +242,18 @@ function findIndirectPaths(
         continue;
       }
 
-      if (edge.requirement) {
-        logger.group(
-          () => `Checking requirement ${edge.requirement!.toString()}`,
-        );
-        // TODO: check if the requirement can be satisfied by the current path,
-        // for now we assume it can be satisfied.
-        if (
-          !canSatisfyRequirement(logger, graph, edge.requirement, path, {
-            graphIds: concatIfNotExistsString(
-              visitedGraphs,
-              edge.tail.subgraphId,
-            ),
-            requirements: visitedKeyFields,
-            edges: [edge],
-          })
-        ) {
-          logger.groupEnd(() => `Requirement not satisfied`);
-          logger.groupEnd(() => `Ignoring. Can't satisfy requirement`);
-          continue;
-        } else {
-          logger.groupEnd(() => `Requirement satisfied`);
-        }
+      const result = canSatisfyEdge(logger, graph, edge, path, {
+        graphIds: concatIfNotExistsString(visitedGraphs, edge.tail.subgraphId),
+        requirements: visitedKeyFields,
+        edges: [edge],
+      });
+
+      if (!result.success) {
+        logger.groupEnd(() => `Requirement not satisfied`);
+        continue;
       }
 
-      const newPath = path.advance(edge);
+      const newPath = path.advance(edge).addRequiredPaths(result.paths);
       logger.log(() => `Advancing path to ${edge.toString()}`);
 
       const directPaths = findDirectPaths(logger, graph, newPath, step, {
@@ -311,7 +285,9 @@ function findIndirectPaths(
     }
   }
 
-  return nextPaths;
+  // TODO: this should be done in a more efficient way, like I do in the satisfiability checker
+  // I set shortest path right after each path is generated
+  return findBestPathsPerSubgraph(nextPaths);
 }
 
 function concatIfNotExistsString(list: string[], item: string): string[] {
@@ -338,22 +314,38 @@ type MoveRequirement<T = SelectionNode> = {
   selection: T;
 };
 
-function canSatisfyRequirement(
+function canSatisfyEdge(
   parentLogger: Logger,
   graph: Graph,
-  requirement: Selection,
+  edge: Edge,
   path: OperationPath,
   excluded: Excluded = {
     graphIds: [],
     requirements: [],
     edges: [],
   },
-) {
+): {
+  success: boolean;
+  paths: OperationPath[];
+} {
+  if (!edge.requirement) {
+    return {
+      success: true,
+      paths: [],
+    };
+  }
+
   const logger = parentLogger.create("Requirements");
 
-  const requirements: MoveRequirement[] = [];
+  logger.log(
+    () =>
+      `Checking requirement ${edge.requirement?.toString()} for ${edge.toString()}`,
+  );
 
-  for (const selection of requirement.selectionSet) {
+  const requirements: MoveRequirement[] = [];
+  const pathsToRequirements: OperationPath[] = [];
+
+  for (const selection of edge.requirement.selectionSet) {
     requirements.unshift({
       selection,
       paths: [path.clone()],
@@ -380,8 +372,13 @@ function canSatisfyRequirement(
     );
 
     if (result.success === false) {
-      return result;
+      return {
+        success: false,
+        paths: [],
+      };
     }
+
+    pathsToRequirements.push(...findBestPathsPerSubgraph(result.paths));
 
     for (const innerRequirement of result.requirements) {
       requirements.unshift(innerRequirement);
@@ -390,13 +387,14 @@ function canSatisfyRequirement(
 
   return {
     success: true,
-    errors: undefined,
+    paths: pathsToRequirements,
   };
 }
 
 type RequirementResult =
   | {
       success: true;
+      paths: OperationPath[];
       requirements: MoveRequirement[];
     }
   | {
@@ -461,11 +459,13 @@ function validateFieldRequirement(
     return {
       success: true,
       requirements: [],
+      paths: nextPaths,
     };
   }
 
   return {
     success: true,
+    paths: nextPaths.slice(),
     requirements: requirement.selection.selectionSet.map((selection) => ({
       selection,
       paths: nextPaths.slice(),
@@ -473,14 +473,38 @@ function validateFieldRequirement(
   };
 }
 
-class OperationPath {
+export class OperationPath {
   constructor(
     public rootNode: Node,
     public edges: Edge[] = [],
+    public requiredPathsForEdges: OperationPath[][] = [],
+    public cost: number = 0,
   ) {}
 
+  addRequiredPaths(paths: OperationPath[]) {
+    if (this.edges.length !== this.requiredPathsForEdges.length) {
+      throw new Error("Looks like advance() was called after addRequiredPaths");
+    }
+    const requiredPathsForLastEdge =
+      this.requiredPathsForEdges[this.requiredPathsForEdges.length - 1];
+    requiredPathsForLastEdge.push(...paths);
+
+    // It's so so wrong, because we may end up doing 1 entity call for all the paths,
+    // but we now multiple that by the number of edges...
+    paths.forEach((path) => {
+      this.cost += path.cost;
+    });
+
+    return this;
+  }
+
   advance(edge: Edge) {
-    return new OperationPath(this.rootNode, this.edges.concat(edge));
+    return new OperationPath(
+      this.rootNode,
+      this.edges.concat(edge),
+      this.requiredPathsForEdges.concat([[]]),
+      this.cost + calculateCost(edge),
+    );
   }
 
   tail(): Node {
@@ -492,7 +516,11 @@ class OperationPath {
   }
 
   clone() {
-    return new OperationPath(this.rootNode, this.edges.slice());
+    return new OperationPath(
+      this.rootNode,
+      this.edges.slice(),
+      this.requiredPathsForEdges.slice(),
+    );
   }
 
   toString() {
@@ -500,4 +528,41 @@ class OperationPath {
       ? this.edges.map((edge) => edge.toString()).join(" -> ")
       : this.rootNode.toString();
   }
+}
+
+function findBestPathsPerSubgraph(paths: OperationPath[]): OperationPath[] {
+  const pathsPerGraph = new Map<string, OperationPath>();
+
+  for (const path of paths) {
+    const endedInGraphId = path.tail().subgraphId;
+    const existingPath = pathsPerGraph.get(endedInGraphId);
+    if (!existingPath || path.cost < existingPath.cost) {
+      pathsPerGraph.set(endedInGraphId, path);
+    }
+  }
+
+  return Array.from(pathsPerGraph.values());
+}
+
+function findBestPath(paths: OperationPath[]): OperationPath {
+  let bestPath: OperationPath | null = null;
+
+  for (const path of paths) {
+    if (!bestPath || path.cost < bestPath.cost) {
+      bestPath = path;
+    }
+  }
+
+  invariant(bestPath, "No best path found");
+
+  return bestPath;
+}
+
+function calculateCost(edge: Edge): number {
+  if (edge.move instanceof FieldMove) {
+    return 1;
+  }
+
+  // for the rest
+  return 10;
 }

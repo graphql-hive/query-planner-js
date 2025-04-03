@@ -4,7 +4,7 @@ import {
   parse,
   specifiedScalarTypes,
 } from "graphql";
-import { invariant, resolveTypeNodeName } from "./utils";
+import { invariant, isListTypeNode, resolveTypeNodeName } from "./utils";
 import { Edge, FieldMove, Graph, Node } from "./graph";
 import {
   ObjectType,
@@ -113,6 +113,7 @@ function parseObjectType(def: ObjectTypeDefinitionNode): ObjectType[] {
   }
 
   for (const field of fields) {
+    const isList = isListTypeNode(field.type);
     if (!field.directives?.length) {
       // it means that the field belongs to all graphs defining the object type
 
@@ -121,6 +122,7 @@ function parseObjectType(def: ObjectTypeDefinitionNode): ObjectType[] {
           new ObjectTypeField(
             field.name.value,
             resolveTypeNodeName(field.type),
+            isList,
             // TODO: turn it into object...
             new JoinField(graphId, null, null, null, false, null, false),
           ),
@@ -153,6 +155,7 @@ function parseObjectType(def: ObjectTypeDefinitionNode): ObjectType[] {
         new ObjectTypeField(
           field.name.value,
           resolveTypeNodeName(field.type),
+          isList,
           joinField,
         ),
       );
@@ -237,7 +240,7 @@ function createEdgeForObjectTypeField(
     new Edge(
       head,
       tail,
-      new FieldMove(field.name, head.typeName, head.typeKind),
+      new FieldMove(field.name, head.typeName, head.typeKind, field.isList),
       null,
     ),
   );

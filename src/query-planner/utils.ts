@@ -27,6 +27,18 @@ export function invariant(
   throw new Error(value);
 }
 
+export function isListTypeNode(typeNode: TypeNode): boolean {
+  if (typeNode.kind === Kind.LIST_TYPE) {
+    return true;
+  }
+
+  if (typeNode.kind === Kind.NON_NULL_TYPE) {
+    return isListTypeNode(typeNode.type);
+  }
+
+  return false;
+}
+
 export function resolveTypeNodeName(typeNode: TypeNode): string {
   switch (typeNode.kind) {
     case Kind.NAMED_TYPE:

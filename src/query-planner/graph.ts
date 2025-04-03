@@ -30,6 +30,7 @@ export class FieldMove implements Display {
     public fieldName: string,
     public typeName: string,
     public typeKind: TypeKind,
+    public isList: boolean,
   ) {}
 
   toString() {
@@ -398,6 +399,10 @@ export class Selection {
     private keyFieldsString: string,
     public selectionSet: SelectionNode[],
   ) {}
+
+  getTypeName(): string {
+    return this.typeName;
+  }
 
   contains(typeName: string, fieldName: string) {
     return this._contains(typeName, fieldName, this.selectionSet);
