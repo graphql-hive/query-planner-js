@@ -1,0 +1,43 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Object Types Entities > complex-entity-call 2`] = `
+"QueryPlan {
+  Sequence {
+    Fetch(service: "PRODUCTS") {
+      {
+        topProducts{
+          __typename
+          products{
+            __typename
+            category{
+              id
+              tag
+            }
+            id
+            pid
+          }
+        }
+      }
+    },
+    Flatten(path: "topProducts.products.@") {
+      Fetch(service: "PRICE") {
+        {
+          ... on Product {
+            category {
+              id
+              tag
+            }
+            id
+            pid
+          }
+        } =>
+        {
+          ... on Product {
+            price
+          }
+        }
+      }
+    }
+  }
+}"
+`;

@@ -1,0 +1,18 @@
+digraph G {
+  root -> "Query/PRODUCTS"
+  "Query/PRODUCTS" -> "ProductList/PRODUCTS" [label="topProducts"]
+  "ProductList/PRODUCTS" -> "Product/PRODUCTS" [label="products"]
+  "Product/PRODUCTS" -> "Product/PRICE" [label="(🔑 id pid category{id tag})"]
+  "Product/PRICE" -> "Price/PRICE" [label="price"]
+  "Price/PRICE" -> "Float/PRICE" [label="price"]
+  "Product/PRODUCTS" -> "Category/PRODUCTS" [label="category"]
+  "Product/PRODUCTS" -> "String/PRODUCTS" [label="id"]
+  "Product/PRODUCTS" -> "Product/LIST" [label="🔑 id pid"]
+  "Product/LIST" -> "String/LIST" [label="id"]
+  "Product/PRODUCTS" -> "Product/LINK" [label="🔑 id"]
+  "Product/LINK" -> "String/LINK" [label="pid"]
+  "Product/LINK" -> "String/LINK" [label="id"]
+  "Product/LIST" -> "String/LIST" [label="pid"]
+  "Category/PRODUCTS" -> "String/PRODUCTS" [label="id"]
+  "Category/PRODUCTS" -> "String/PRODUCTS" [label="tag"]
+}

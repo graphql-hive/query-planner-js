@@ -53,6 +53,8 @@
     "compose:apollo": "pnpm compose apollo",
     "compose:debug": "DEBUG_COLORS=0 DEBUG=composition:* pnpm compose > guild.log",
     "compose:inspect": "tsx --inspect-brk --expose-gc ./compose.ts",
+    "plan": "tsx plan.ts",
+    "plan:inspect": "tsx --inspect-brk ./plan.ts",
     "format": "prettier --write .",
     "release": "pnpm build && changeset publish",
     "test": "vitest --config ./vitest.config.js",

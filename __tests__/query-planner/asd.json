@@ -1,0 +1,87 @@
+{
+  "kind": "QueryPlan",
+  "node": {
+    "kind": "Sequence",
+    "nodes": [
+      {
+        "kind": "Fetch",
+        "serviceName": "products",
+        "variableUsages": [],
+        "operation": "{topProducts{products{__typename id category{id tag}}}}",
+        "operationKind": "query"
+      },
+      {
+        "kind": "Flatten",
+        "path": ["topProducts", "products", "@"],
+        "node": {
+          "kind": "Fetch",
+          "serviceName": "link",
+          "requires": [
+            {
+              "kind": "InlineFragment",
+              "typeCondition": "Product",
+              "selections": [
+                {
+                  "kind": "Field",
+                  "name": "__typename"
+                },
+                {
+                  "kind": "Field",
+                  "name": "id"
+                }
+              ]
+            }
+          ],
+          "variableUsages": [],
+          "operation": "query($representations:[_Any!]!){_entities(representations:$representations){...on Product{pid}}}",
+          "operationKind": "query"
+        }
+      },
+      {
+        "kind": "Flatten",
+        "path": ["topProducts", "products", "@"],
+        "node": {
+          "kind": "Fetch",
+          "serviceName": "price",
+          "requires": [
+            {
+              "kind": "InlineFragment",
+              "typeCondition": "Product",
+              "selections": [
+                {
+                  "kind": "Field",
+                  "name": "__typename"
+                },
+                {
+                  "kind": "Field",
+                  "name": "id"
+                },
+                {
+                  "kind": "Field",
+                  "name": "pid"
+                },
+                {
+                  "kind": "Field",
+                  "name": "category",
+                  "selections": [
+                    {
+                      "kind": "Field",
+                      "name": "id"
+                    },
+                    {
+                      "kind": "Field",
+                      "name": "tag"
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "variableUsages": [],
+          "operation": "query($representations:[_Any!]!){_entities(representations:$representations){...on Product{price{price}}}}",
+          "operationKind": "query"
+        }
+      }
+    ]
+  }
+}
