@@ -22,8 +22,7 @@ export class Node implements Display {
   }
 }
 
-type Move = (FieldMove | EntityMove | AbstractMove | InterfaceObjectMove) &
-  Display;
+type Move = (FieldMove | EntityMove) & Display;
 
 export class FieldMove implements Display {
   constructor(
@@ -44,30 +43,30 @@ export class EntityMove implements Display {
   }
 }
 
-export class AbstractMove implements Display {
-  constructor(
-    public fromTypeName: string,
-    public fromTypeKind: TypeKind,
-    public toTypeName: string,
-    public toTypeKind: TypeKind,
-  ) {}
+// export class AbstractMove implements Display {
+//   constructor(
+//     public fromTypeName: string,
+//     public fromTypeKind: TypeKind,
+//     public toTypeName: string,
+//     public toTypeKind: TypeKind,
+//   ) {}
 
-  toString() {
-    return `... on ${this.toTypeName}`;
-  }
-}
+//   toString() {
+//     return `... on ${this.toTypeName}`;
+//   }
+// }
 
-export class InterfaceObjectMove implements Display {
-  constructor(
-    public fromTypeName: string,
-    public fromTypeKind: TypeKind,
-    public toTypeName: string,
-  ) {}
+// export class InterfaceObjectMove implements Display {
+//   constructor(
+//     public fromTypeName: string,
+//     public fromTypeKind: TypeKind,
+//     public toTypeName: string,
+//   ) {}
 
-  toString() {
-    return `... on ${this.toTypeName}`;
-  }
-}
+//   toString() {
+//     return `... on ${this.toTypeName}`;
+//   }
+// }
 
 export class Edge<T = Move> implements Display {
   constructor(

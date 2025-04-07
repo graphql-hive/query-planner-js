@@ -186,9 +186,9 @@ function findIndirectPaths(
     edges: [],
   },
 ): OperationPath[] {
-  const nextPaths: OperationPath[] = [];
   const tail = path.tail();
   const sourceGraphId = tail.subgraphId;
+  const { add, getPaths } = trackBestPerSubgraph();
 
   const queue: [string[], Selection[], OperationPath][] = [
     [excluded.graphIds, excluded.requirements, path],
@@ -263,11 +263,13 @@ function findIndirectPaths(
       });
 
       if (directPaths.length) {
-        nextPaths.push(...directPaths);
         logger.log(
           () =>
             `Found ${directPaths.length} direct paths to ${edge.toString()}`,
         );
+        for (const path of directPaths) {
+          add(path);
+        }
         continue;
       }
 
@@ -287,7 +289,7 @@ function findIndirectPaths(
 
   // TODO: this should be done in a more efficient way, like I do in the satisfiability checker
   // I set shortest path right after each path is generated
-  return findBestPathsPerSubgraph(nextPaths);
+  return getPaths();
 }
 
 function concatIfNotExistsString(list: string[], item: string): string[] {
@@ -378,7 +380,7 @@ function canSatisfyEdge(
       };
     }
 
-    pathsToRequirements.push(...findBestPathsPerSubgraph(result.paths));
+    pathsToRequirements.push(...result.paths);
 
     for (const innerRequirement of result.requirements) {
       requirements.unshift(innerRequirement);
@@ -408,8 +410,9 @@ function validateFieldRequirement(
   excluded: Excluded,
 ): RequirementResult {
   const { fieldName } = requirement.selection;
+  const { add, getPaths } = trackBestPerSubgraph();
 
-  const nextPaths: OperationPath[] = [];
+  // const nextPaths: OperationPath[] = [];
 
   for (const path of requirement.paths) {
     const directPathsResult = findDirectPaths(
@@ -423,7 +426,9 @@ function validateFieldRequirement(
       excluded,
     );
     if (directPathsResult.length) {
-      nextPaths.push(...directPathsResult);
+      for (const directPath of directPathsResult) {
+        add(directPath);
+      }
     }
   }
 
@@ -441,9 +446,13 @@ function validateFieldRequirement(
     );
 
     if (indirectPaths.length) {
-      nextPaths.push(...indirectPaths);
+      for (const indirectPath of indirectPaths) {
+        add(indirectPath);
+      }
     }
   }
+
+  const nextPaths = getPaths();
 
   if (nextPaths.length === 0) {
     return {
@@ -476,7 +485,14 @@ function validateFieldRequirement(
 export class OperationPath {
   constructor(
     public rootNode: Node,
+    /**
+     * Array of edges in the path.
+     */
     public edges: Edge[] = [],
+    /**
+     * Array of paths required for each edge in the path.
+     * Operations are stored at the index of the edge in the path.
+     */
     public requiredPathsForEdges: OperationPath[][] = [],
     public cost: number = 0,
   ) {}
@@ -530,20 +546,6 @@ export class OperationPath {
   }
 }
 
-function findBestPathsPerSubgraph(paths: OperationPath[]): OperationPath[] {
-  const pathsPerGraph = new Map<string, OperationPath>();
-
-  for (const path of paths) {
-    const endedInGraphId = path.tail().subgraphId;
-    const existingPath = pathsPerGraph.get(endedInGraphId);
-    if (!existingPath || path.cost < existingPath.cost) {
-      pathsPerGraph.set(endedInGraphId, path);
-    }
-  }
-
-  return Array.from(pathsPerGraph.values());
-}
-
 function findBestPath(paths: OperationPath[]): OperationPath {
   let bestPath: OperationPath | null = null;
 
@@ -567,11 +569,33 @@ function calculateCost(edge: Edge): number {
   return 10;
 }
 
+function trackBestPerSubgraph() {
+  const bestPerSubgraphMap = new Map<string, OperationPath>();
+
+  return {
+    add(path: OperationPath) {
+      const existing = bestPerSubgraphMap.get(path.tail().subgraphId);
+
+      if (!existing || existing.cost > path.cost) {
+        bestPerSubgraphMap.set(path.tail().subgraphId, path);
+      }
+    },
+    getPaths() {
+      const paths: OperationPath[] = [];
+
+      for (const [_, path] of bestPerSubgraphMap) {
+        paths.push(path);
+      }
+
+      return paths;
+    },
+  };
+}
+
 export function pathsToGraphviz(
   paths: OperationPath[],
   asLink = false,
 ): string {
-  const colored = `color=blue`;
   const lines = [`digraph G {`];
 
   for (const path of paths) {

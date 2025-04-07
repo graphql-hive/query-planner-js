@@ -17,6 +17,14 @@ import {
 import { OperationPath } from "./walker";
 import { print } from "../graphql/printer";
 import { TypeKind } from "./schema";
+import {
+  QueryPlanNode,
+  FetchNode,
+  FlattenNode,
+  ParallelNode,
+  SequenceNode,
+  QueryPlan,
+} from "./plan-nodes";
 import { invariant } from "./utils";
 
 /**
@@ -323,38 +331,6 @@ function buildOperationFromPathSegment(edges: Edge[]): string {
 }
 
 ///
-
-type QueryPlanNode = FetchNode | SequenceNode | ParallelNode | FlattenNode;
-
-interface FetchNode {
-  kind: "Fetch";
-  serviceName: string;
-  requires?: SelectionNode;
-  variableUsages: any[];
-  operation: string;
-  operationKind: OperationTypeNode;
-}
-
-interface SequenceNode {
-  kind: "Sequence";
-  nodes: QueryPlanNode[];
-}
-
-interface ParallelNode {
-  kind: "Parallel";
-  nodes: QueryPlanNode[];
-}
-
-interface FlattenNode {
-  kind: "Flatten";
-  path: (string | number)[];
-  node: QueryPlanNode;
-}
-
-interface QueryPlan {
-  kind: "QueryPlan";
-  node: QueryPlanNode;
-}
 
 /**
  * Builds a GraphQL selection set from a path segment
