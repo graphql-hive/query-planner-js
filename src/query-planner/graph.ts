@@ -43,31 +43,6 @@ export class EntityMove implements Display {
   }
 }
 
-// export class AbstractMove implements Display {
-//   constructor(
-//     public fromTypeName: string,
-//     public fromTypeKind: TypeKind,
-//     public toTypeName: string,
-//     public toTypeKind: TypeKind,
-//   ) {}
-
-//   toString() {
-//     return `... on ${this.toTypeName}`;
-//   }
-// }
-
-// export class InterfaceObjectMove implements Display {
-//   constructor(
-//     public fromTypeName: string,
-//     public fromTypeKind: TypeKind,
-//     public toTypeName: string,
-//   ) {}
-
-//   toString() {
-//     return `... on ${this.toTypeName}`;
-//   }
-// }
-
 export class Edge<T = Move> implements Display {
   constructor(
     public head: Node,
