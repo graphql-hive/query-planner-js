@@ -566,3 +566,126 @@ function calculateCost(edge: Edge): number {
   // for the rest
   return 10;
 }
+
+export function pathsToGraphviz(
+  paths: OperationPath[],
+  asLink = false,
+): string {
+  const colored = `color=blue`;
+  const lines = [`digraph G {`];
+
+  for (const path of paths) {
+    pathToGraphviz(path, lines, "color=blue");
+  }
+
+  function normalizeLine(line: string) {
+    return line.replace(/, color=\w+/, "");
+  }
+
+  // deduplicate lines, but compare with `, "color=blue"`, to not duplicate colored edges
+  const uniqueLines = lines.filter((line, i, all) => {
+    return all.findIndex((l) => normalizeLine(l) === normalizeLine(line)) === i;
+  });
+
+  const str = uniqueLines.join("\n") + "\n}";
+
+  if (asLink) {
+    // return `https://dreampuf.github.io/GraphvizOnline/#${encodeURIComponent(str)}`;
+    return `https://magjac.com/graphviz-visual-editor/?dot=${encodeURIComponent(str)}`;
+  }
+
+  return str;
+}
+
+function pathToGraphviz(
+  path: OperationPath,
+  lines: string[],
+  edgeAttributes: string | null = null,
+) {
+  for (const edge of path.edges) {
+    lines.push(edgeToGraphviz(edge, edgeAttributes));
+  }
+
+  for (const dependencyPaths of path.requiredPathsForEdges) {
+    for (const dependencyPath of dependencyPaths) {
+      pathToGraphviz(dependencyPath, lines);
+    }
+  }
+}
+
+function edgeToGraphviz(edge: Edge, attributes: string | null): string {
+  let str = "";
+
+  str += `"${edge.head.typeName}/${edge.head.subgraphId}"`;
+  str += " -> ";
+  str += `"${edge.tail.typeName}/${edge.tail.subgraphId}"`;
+
+  str += '[label="';
+
+  if (edge.move instanceof FieldMove) {
+    str += edge.move.fieldName;
+  } else if (edge.move instanceof EntityMove) {
+    str += "🔑 ";
+  }
+
+  if (edge.requirement) {
+    str += edge.requirement.toString();
+  }
+
+  str += `"`;
+
+  if (attributes) {
+    str += ", " + attributes;
+  } else {
+    str += ", color=" + pickColor(edge.tail.subgraphId);
+  }
+
+  str += `]`;
+
+  return str;
+}
+
+const colors = [
+  "lime",
+  "aqua",
+  "aquamarine",
+  "darkorchid",
+  "darkcyan",
+  "deeppink",
+  "indigo",
+];
+function pickColor(subgraphId: string) {
+  // Simple hash function: a poor man's consistent hash
+  let hash = 0;
+  for (let i = 0; i < subgraphId.length; i++) {
+    const char = subgraphId.charCodeAt(i);
+    hash = (hash << 5) - hash + char;
+    hash |= 0; // Convert to 32bit integer
+  }
+
+  // Make sure it's positive
+  hash = Math.abs(hash);
+
+  // Map to color index
+  return colors[hash % colors.length];
+}
+
+// function printRequiredEdges(path: OperationPath, indent: number) {
+//   const spaces = " ".repeat(indent);
+//   let i = 0;
+//   for (const requiredPathsOfEdge of path.requiredPathsForEdges) {
+//     if (requiredPathsOfEdge.length) {
+//       console.log(
+//         spaces + " edge " + path.edges[i++].toString() + " depends on: ",
+//       );
+//       for (const requiredPath of requiredPathsOfEdge) {
+//         console.log(
+//           spaces +
+//             "  " +
+//             requiredPath.edges.map((edge) => edge.toString()).join(" -> "),
+//         );
+//         printRequiredEdges(requiredPath, indent + 4);
+//       }
+//     }
+//   }
+// }

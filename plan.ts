@@ -1,7 +1,11 @@
 import { OperationTypeNode } from "graphql";
 import { graphql } from "./__tests__/shared/utils.js";
 import { parseSupergraph } from "./src/query-planner/parse.js";
-import { OperationPath, walkQuery } from "./src/query-planner/walker.js";
+import {
+  OperationPath,
+  walkQuery,
+  pathsToGraphviz,
+} from "./src/query-planner/walker.js";
 import { composeServices } from "./src/compose.js";
 import {
   generateQueryPlan,
@@ -153,19 +157,21 @@ function printRequiredEdges(path: OperationPath, indent: number) {
   for (const requiredPathsOfEdge of path.requiredPathsForEdges) {
     if (requiredPathsOfEdge.length) {
       console.log(
-        spaces + " edge " + path.edges[i++].toString() + " depends on: ",
+        spaces + "edge " + path.edges[i++].toString() + " depends on: ",
       );
       for (const requiredPath of requiredPathsOfEdge) {
         console.log(
           spaces +
-            "  " +
+            "    " +
             requiredPath.edges.map((edge) => edge.toString()).join(" -> "),
         );
-        printRequiredEdges(requiredPath, indent + 4);
+        printRequiredEdges(requiredPath, indent + 8);
       }
     }
   }
 }
+
+console.log(pathsToGraphviz([path], true));
 
 // const plan = generateQueryPlan(path);
 
